@@ -7,7 +7,7 @@ Example
 -------
 Declare the logger:
 
-    logger, _ := simplelog.NewLogger(simplelog.CONSOEL | simplelog.SYSLOG, "example")
+    logger, _ := simplelog.NewLogger(simplelog.CONSOLE | simplelog.SYSLOG, "example")
 
 Send logs to it:
 
