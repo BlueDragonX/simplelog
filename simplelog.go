@@ -49,7 +49,7 @@ func NewLogger(outputs int, prefix string) (l *Logger, err error) {
 	var outConsole *log.Logger
 	var outSyslog *syslog.Writer
 	if outputs & CONSOLE == CONSOLE {
-		outConsole = log.New(os.Stdout, prefix, log.LstdFlags | log.Lmicroseconds)
+		outConsole = log.New(os.Stdout, prefix + " ", log.LstdFlags | log.Lmicroseconds)
 	}
 	if outputs & SYSLOG == SYSLOG {
 		if outSyslog, err = syslog.New(syslog.LOG_DAEMON | syslog.LOG_NOTICE, prefix); err != nil {
