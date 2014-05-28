@@ -38,10 +38,26 @@ func getLevelString(level int) string {
 	return "NOTICE"
 }
 
+type consoleLogger interface {
+	Printf(string, ...interface{})
+	Prefix() string
+}
+
+type syslogLogger interface {
+	Debug(string) error
+	Notice(string) error
+	Info(string) error
+	Warning(string) error
+	Err(string) error
+	Crit(string) error
+	Close() error
+}
+
 // Simple logger instance.
 type Logger struct {
-	console *log.Logger
-	syslog  *syslog.Writer
+	outputs int
+	console consoleLogger
+	syslog  syslogLogger
 }
 
 // Create a new logger with the given outputs and log prefix.
@@ -56,8 +72,18 @@ func NewLogger(outputs int, prefix string) (l *Logger, err error) {
 			return
 		}
 	}
-	l = &Logger{outConsole, outSyslog}
+	l = &Logger{outputs, outConsole, outSyslog}
 	return
+}
+
+// Check if console logging is enabled.
+func (l *Logger) Console() bool {
+	return l.outputs&CONSOLE == CONSOLE
+}
+
+// Check if syslog logging is enabled.
+func (l *Logger) Syslog() bool {
+	return l.outputs&SYSLOG == SYSLOG
 }
 
 // Log to the console.
@@ -86,10 +112,10 @@ func (l *Logger) logSyslog(level int, format string, args ...interface{}) error 
 
 // Log to all configured outputs.
 func (l *Logger) Log(level int, format string, args ...interface{}) (err error) {
-	if l.console != nil {
+	if l.Console() {
 		l.logConsole(level, format, args...)
 	}
-	if l.syslog != nil {
+	if l.Syslog() {
 		err = l.logSyslog(level, format, args...)
 	}
 	if level == FATAL {
@@ -130,9 +156,8 @@ func (l *Logger) Fatal(format string, args ...interface{}) error {
 
 // Close the logger.
 func (l *Logger) Close() (err error) {
-	if l.syslog != nil {
+	if l.Syslog() {
 		err = l.syslog.Close()
-		l.syslog = nil
 	}
 	return
 }
