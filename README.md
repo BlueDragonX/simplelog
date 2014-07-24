@@ -15,6 +15,11 @@ Send logs to it:
 
     logger.Notice("starting the app")
 
+Set the level:
+
+	logger.SetLevel(simplelog.DEBUG)
+	logger.Debug("this is not a traceback")
+
 Close the logger:
 
     logger.Close()

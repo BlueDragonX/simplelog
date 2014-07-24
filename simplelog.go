@@ -5,6 +5,7 @@ import (
 	"log"
 	"log/syslog"
 	"os"
+	"strings"
 )
 
 const (
@@ -14,15 +15,33 @@ const (
 
 const (
 	DEBUG = iota
-	NOTICE
 	INFO
+	NOTICE
 	WARN
 	ERROR
 	FATAL
 )
 
+// Get a level for a string value.
+func StringToLevel(level string) int {
+	level = strings.ToUpper(strings.TrimSpace(level))
+	switch level {
+	case "DEBUG":
+		return DEBUG
+	case "INFO":
+		return INFO
+	case "WARN":
+		return WARN
+	case "ERROR":
+		return ERROR
+	case "FATAL":
+		return FATAL
+	}
+	return NOTICE
+}
+
 // Get a string for a level value.
-func getLevelString(level int) string {
+func LevelToString(level int) string {
 	switch level {
 	case DEBUG:
 		return "DEBUG"
@@ -58,9 +77,10 @@ type Logger struct {
 	outputs int
 	console consoleLogger
 	syslog  syslogLogger
+	level   int
 }
 
-// Create a new logger with the given outputs and log prefix.
+// Create a new logger with the given outputs and log prefix. Level is set up INFO.
 func NewLogger(outputs int, prefix string) (l *Logger, err error) {
 	var outConsole *log.Logger
 	var outSyslog *syslog.Writer
@@ -72,8 +92,13 @@ func NewLogger(outputs int, prefix string) (l *Logger, err error) {
 			return
 		}
 	}
-	l = &Logger{outputs, outConsole, outSyslog}
+	l = &Logger{outputs, outConsole, outSyslog, NOTICE}
 	return
+}
+
+// Set the logging level.
+func (l *Logger) SetLevel(level int) {
+	l.level = level
 }
 
 // Check if console logging is enabled.
@@ -89,7 +114,7 @@ func (l *Logger) Syslog() bool {
 // Log to the console.
 func (l *Logger) logConsole(level int, format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	l.console.Printf("%-8s %s\n", fmt.Sprintf("[%s]", getLevelString(level)), msg)
+	l.console.Printf("%-8s %s\n", fmt.Sprintf("[%s]", LevelToString(level)), msg)
 }
 
 // Log to syslog.
@@ -112,6 +137,9 @@ func (l *Logger) logSyslog(level int, format string, args ...interface{}) error 
 
 // Log to all configured outputs.
 func (l *Logger) Log(level int, format string, args ...interface{}) (err error) {
+	if level < l.level{
+		return
+	}
 	if l.Console() {
 		l.logConsole(level, format, args...)
 	}

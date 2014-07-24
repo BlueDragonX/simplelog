@@ -12,10 +12,7 @@ type mockConsoleLogger struct {
 }
 
 func newMockConsoleLogger(test *testing.T, prefix string) *mockConsoleLogger {
-	return &mockConsoleLogger{
-		test: test,
-		prefix: prefix,
-	}
+	return &mockConsoleLogger{test, prefix, ""}
 }
 
 func (mock *mockConsoleLogger) CheckMsg(msg string) {
@@ -41,10 +38,7 @@ type mockSyslogLogger struct {
 }
 
 func newMockSyslogLogger(test *testing.T, prefix string) *mockSyslogLogger {
-	return &mockSyslogLogger{
-		test: test,
-		closed: false,
-	}
+	return &mockSyslogLogger{test, "", -1, false}
 }
 
 func (mock *mockSyslogLogger) CheckMsg(level int, msg string) {
@@ -108,12 +102,15 @@ func (mock *mockSyslogLogger) Close() error {
 }
 
 func TestNewEmptyLogger(t *testing.T) {
-	if log, err := NewLogger(0, "empty"); err == nil {
-		if log.Console() {
+	if logger, err := NewLogger(0, "empty"); err == nil {
+		if logger.Console() {
 			t.Error("empty logger has console logging enabled!")
 		}
-		if log.Syslog() {
+		if logger.Syslog() {
 			t.Error("empty logger has a syslog logging enabled!")
+		}
+		if logger.level != NOTICE {
+			t.Error("empty logger level not set to NOTICE!")
 		}
 	} else {
 		t.Errorf("empty logger creation failed: %s", err)
@@ -131,6 +128,9 @@ func TestNewConsoleLogger(t *testing.T) {
 		if logger.Syslog() {
 			t.Error("console logger has syslog logging enabled!")
 		}
+		if logger.level != NOTICE {
+			t.Error("console logger level not set to NOTICE!")
+		}
 		logger.Close()
 	} else {
 		t.Errorf("console logger creation failed: %s", err)
@@ -144,6 +144,9 @@ func TestNewSyslogLogger(t *testing.T) {
 		}
 		if !logger.Syslog() {
 			t.Error("syslog logger has syslog logging disabled!")
+		}
+		if logger.level != NOTICE {
+			t.Error("syslog logger level not set to NOTICE!")
 		}
 		logger.Close()
 	} else {
@@ -165,6 +168,43 @@ func TestNewAllLogger(t *testing.T) {
 	}
 }
 
+func TestLevel(t *testing.T) {
+	msg := "hello world"
+	mock := newMockSyslogLogger(t, "syslog")
+	logger, err := NewLogger(SYSLOG, "syslog")
+	if err != nil {
+		t.Errorf("syslog logger creation failed: %s", err)
+	}
+	logger.syslog = mock
+
+	logger.Debug(msg)
+	mock.CheckMsg(-1, "")
+	logger.Info(msg)
+	mock.CheckMsg(-1, "")
+	logger.Notice(msg)
+	mock.CheckMsg(NOTICE, msg)
+	logger.Warn(msg)
+	mock.CheckMsg(WARN, msg)
+	logger.Error(msg)
+	mock.CheckMsg(ERROR, msg)
+
+	logger.SetLevel(ERROR)
+	if logger.level != ERROR {
+		t.Errorf("level not set to ERROR")
+	}
+
+	logger.Debug(msg)
+	mock.CheckMsg(-1, "")
+	logger.Info(msg)
+	mock.CheckMsg(-1, "")
+	logger.Notice(msg)
+	mock.CheckMsg(-1, "")
+	logger.Warn(msg)
+	mock.CheckMsg(-1, "")
+	logger.Error(msg)
+	mock.CheckMsg(ERROR, msg)
+}
+
 func TestConsole(t *testing.T) {
 	var fullMsg string
 	prefix := "console"
@@ -173,6 +213,7 @@ func TestConsole(t *testing.T) {
 	msg := "test: some value\n"
 	mock := newMockConsoleLogger(t, prefix)
 	logger, err := NewLogger(CONSOLE, prefix)
+	logger.SetLevel(DEBUG)
 	if err != nil {
 		t.Errorf("console logger creation failed: %s", err)
 	}
@@ -226,6 +267,7 @@ func TestSyslog(t *testing.T) {
 	msg := "test: some value"
 	mock := newMockSyslogLogger(t, prefix)
 	logger, err := NewLogger(SYSLOG, prefix)
+	logger.SetLevel(DEBUG)
 	if err != nil {
 		t.Errorf("syslog logger creation failed: %s", err)
 	}
